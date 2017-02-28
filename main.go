@@ -23,6 +23,7 @@ func main() {
 		fmt.Println(constant.PATH_UNEXISTS_ERROR)
 	}
 	cmd := exec.Command("go", "build", path)
+	cmd.Dir = path[:strings.LastIndex(path, `/`)]
 	result, err := execCommand(cmd, false)
 	if err == nil {
 
@@ -41,7 +42,7 @@ func main() {
 			if err != nil {
 				os.Stderr.Write([]byte(result))
 			}
-			fmt.Sprintf("Download %s success", pack)
+			fmt.Printf("Download %s success", pack)
 		}
 	}
 }
