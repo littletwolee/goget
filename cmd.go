@@ -3,54 +3,42 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
-	"github.com/littletwolee/commons"
+	ccmd "github.com/littletwolee/commons/cmd"
 )
 
-func build() (string, error) {
-	_, strerr, err := commons.GetCmd().ExecCommand("go", "./", []string{"build"}, false)
+type cmd struct {
+	cmd *exec.Cmd
+	p   string
+}
+
+func newCmd() *cmd {
+	p, err := getPath()
 	if err != nil {
-		return "", err
+		return nil
 	}
-	return strerr, nil
+	projectName := p[strings.LastIndex(p, "/")+1:]
+	command := fmt.Sprintf("./%s", projectName)
+	return &cmd{cmd: ccmd.GetCmd().Command(command, "./"), p: p}
+}
+func getPath() (string, error) {
+	return filepath.Abs(filepath.Dir(os.Args[0])) //返回绝对路径  filepath.Dir(os.Args[0])去除最后一个元素的路径
+}
+func (c *cmd) run() error {
+	if c.cmd.Process != nil {
+		if err := c.cmd.Process.Kill(); err != nil {
+			return err
+		}
+	}
+	return c.cmd.Run()
 }
 
-func getPkg(pkg string) error {
-	command := "git"
-	pars := []string{"clone", "--progress", fmt.Sprintf(`https://%s`, pkg), pkg}
-	rootdir := fmt.Sprintf(`%s/src/`, os.ExpandEnv("$GOPATH"))
-	fmt.Printf("Downloading %s", pkg)
-	_, _, err := commons.GetCmd().ExecCommand(command, rootdir, pars, true)
-	return err
-}
-
-func getPkgName(errStr string) string {
-	pkgKeyWord := "in any of"
-	if errStr != "" && strings.Contains(errStr, pkgKeyWord) {
-		pkg := strings.Split(errStr, `"`)[1]
-		pkgSplit := strings.Split(pkg, `/`)
-		if len(pkgSplit) > 3 {
-			pkg = strings.Join(pkgSplit[:3], `/`)
-		}
-		return pkg
+func (c *cmd) stop() error {
+	if c.cmd.Process != nil {
+		return c.cmd.Process.Kill()
 	}
-	return ""
-}
-func run(outChan chan bool) {
-	//pkgChan := make(chan string)
-	for {
-		errStr, err := build()
-		if err != nil {
-			commons.Console().Panic(err)
-		}
-		if pkg := getPkgName(errStr); pkg != "" {
-			if err := getPkg(pkg); err != nil {
-				commons.Console().Panic(err)
-			}
-			fmt.Printf("pkg \"%s\" download success!\n", pkg)
-			continue
-		}
-		outChan <- true
-	}
+	return nil
 }
