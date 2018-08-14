@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/littletwolee/commons"
 	"os"
 	"strings"
+
+	"github.com/littletwolee/commons"
 )
 
-func Build() (string, error) {
+func build() (string, error) {
 	_, strerr, err := commons.GetCmd().ExecCommand("go", "./", []string{"build"}, false)
 	if err != nil {
 		return "", err
@@ -15,39 +16,41 @@ func Build() (string, error) {
 	return strerr, nil
 }
 
-func Get(output string) {
-	for _, v := range strings.Split(output, "\n") {
-		if strings.Contains(v, "in any of") {
-			pack := strings.Split(v, `"`)[1]
-			if len(strings.Split(pack, `/`)) > 3 {
-				packarr := strings.Split(pack, `/`)
-				pack = fmt.Sprintf(`%s/%s/%s`, packarr[0], packarr[1], packarr[2])
-			}
-			command := "git"
-			pars := []string{"clone", "--progress", fmt.Sprintf(`https://%s`, pack), pack}
-			rootdir := fmt.Sprintf(`%s/src/`, os.ExpandEnv("$GOPATH"))
-			commons.GetLogger().OutMsg(fmt.Sprintf("Downloading %s", pack))
-			commons.GetCmd().ExecCommand(command, rootdir, pars, true)
-			commons.GetLogger().OutMsg(fmt.Sprintf("Download %s success", pack))
-		}
-	}
-
+func getPkg(pkg string) error {
+	command := "git"
+	pars := []string{"clone", "--progress", fmt.Sprintf(`https://%s`, pkg), pkg}
+	rootdir := fmt.Sprintf(`%s/src/`, os.ExpandEnv("$GOPATH"))
+	fmt.Printf("Downloading %s", pkg)
+	_, _, err := commons.GetCmd().ExecCommand(command, rootdir, pars, true)
+	return err
 }
 
-func Run() {
-	dir, _, err := commons.GetCmd().ExecCommand("pwd", "./", nil, false)
-	var (
-		projectName string
-	)
-	if err != nil {
-		commons.GetLogger().OutErr(err)
+func getPkgName(errStr string) string {
+	pkgKeyWord := "in any of"
+	if errStr != "" && strings.Contains(errStr, pkgKeyWord) {
+		pkg := strings.Split(errStr, `"`)[1]
+		pkgSplit := strings.Split(pkg, `/`)
+		if len(pkgSplit) > 3 {
+			pkg = strings.Join(pkgSplit[:3], `/`)
+		}
+		return pkg
 	}
-	if strings.Contains(dir, "/") {
-		projectName = dir[strings.LastIndex(dir, "/")+1:]
+	return ""
+}
+func run(outChan chan bool) {
+	//pkgChan := make(chan string)
+	for {
+		errStr, err := build()
+		if err != nil {
+			commons.Console().Panic(err)
+		}
+		if pkg := getPkgName(errStr); pkg != "" {
+			if err := getPkg(pkg); err != nil {
+				commons.Console().Panic(err)
+			}
+			fmt.Printf("pkg \"%s\" download success!\n", pkg)
+			continue
+		}
+		outChan <- true
 	}
-	buildstr, err := Build()
-	if buildstr != "" {
-		Get(buildstr)
-	}
-
 }
