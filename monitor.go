@@ -10,23 +10,25 @@ import (
 type monitor struct {
 	build *b
 	cmd   *cmd
+	c     chan bool
 }
 
 func newMonitor() *monitor {
 	return &monitor{
 		build: &b{},
 		cmd:   newCmd(),
+		c:     make(chan bool),
 	}
 }
 
 func (m *monitor) run() {
-	fmt.Println(1)
-	m.cmd.stop()
-	fmt.Println(2)
+	//m.cmd.stop()
 	m.build.run()
-	fmt.Println(3)
-	go m.cmd.run()
-	fmt.Println(4)
+	go func() {
+		if err := m.cmd.run(); err != nil {
+			fmt.Println(err)
+		}
+	}()
 }
 func (m *monitor) monitoring() {
 	watcher, err := fsnotify.NewWatcher()
@@ -39,8 +41,11 @@ func (m *monitor) monitoring() {
 	go func() {
 		for {
 			select {
-			case _ = <-watcher.Events:
-				m.run()
+			case event := <-watcher.Events:
+				switch event.Op {
+				case fsnotify.Write, fsnotify.Create, fsnotify.Remove:
+					m.run()
+				}
 			case err := <-watcher.Errors:
 				logger.Console().Error(err)
 			}

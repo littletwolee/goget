@@ -32,6 +32,7 @@ func (c *cmd) run() error {
 		if err := c.cmd.Process.Kill(); err != nil {
 			return err
 		}
+		c = newCmd()
 	}
 	return c.cmd.Run()
 }
