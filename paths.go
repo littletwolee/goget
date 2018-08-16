@@ -2,27 +2,23 @@ package main
 
 import (
 	"io/ioutil"
-	"strings"
 )
 
-type paths map[string]int64
+type paths struct {
+	m           map[string]int64
+	root, child string
+}
 
-func (p paths) fetch(root string, children ...string) error {
-	child := func() string {
-		if len(children) > 0 {
-			return strings.Join(children, "/") + "/"
-		} else {
-			return ""
-		}
-	}
-	childStr := child()
-	rd, err := ioutil.ReadDir(root + childStr)
+func (p *paths) fetch() error {
+	rd, err := ioutil.ReadDir(p.root + p.child)
 	for _, fi := range rd {
-		if fi.Name()[:1] != "." {
+		fName := fi.Name()
+		if fName[:1] != "." {
 			if fi.IsDir() {
-				p.fetch(root, append(children, "/"+fi.Name())...)
+				p.child += fName + "/"
+				p.fetch()
 			} else {
-				p[childStr+fi.Name()] = fi.ModTime().UnixNano()
+				p.m[p.child+fName] = fi.ModTime().UnixNano()
 			}
 		}
 	}

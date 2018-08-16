@@ -2,22 +2,20 @@ package main
 
 import (
 	"fmt"
+	"testing"
 )
 
-func main() {
-	// m := newMonitor()
-	// m.run()
-	// m.monitoring()
+func Testfetch(t *testing.T) {
 	p := &paths{m: make(map[string]int64)}
 	path, err := getPath()
 	if err != nil {
-		fmt.Println(err)
+		t.Fatal(err)
 	}
 	p.root = path
 	if err := p.fetch(); err != nil {
-		fmt.Println(err)
+		t.Fatal(err)
 	}
-	for k, v := range p.m {
-		fmt.Printf("%s : %d \n", k, v)
+	if len(p.m) == 0 {
+		t.Fatal(fmt.Errorf("map is empty!"))
 	}
 }
