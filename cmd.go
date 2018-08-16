@@ -2,17 +2,15 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
+	"unsafe"
 
 	ccmd "github.com/littletwolee/commons/cmd"
 )
 
 type cmd struct {
-	cmd *exec.Cmd
-	p   string
+	exec.Cmd
 }
 
 func newCmd() *cmd {
@@ -22,24 +20,22 @@ func newCmd() *cmd {
 	}
 	projectName := p[strings.LastIndex(p, "/")+1:]
 	command := fmt.Sprintf("./%s", projectName)
-	return &cmd{cmd: ccmd.GetCmd().Command(command, "./"), p: p}
+	return (*cmd)(unsafe.Pointer(ccmd.GetCmd().Command(command, "./")))
 }
-func getPath() (string, error) {
-	return filepath.Abs(filepath.Dir(os.Args[0])) //返回绝对路径  filepath.Dir(os.Args[0])去除最后一个元素的路径
-}
-func (c *cmd) run() error {
-	if c.cmd.Process != nil {
-		if err := c.cmd.Process.Kill(); err != nil {
+
+func (c *cmd) start() error {
+	if c.Process != nil {
+		if err := c.Process.Kill(); err != nil {
 			return err
 		}
 		c = newCmd()
 	}
-	return c.cmd.Run()
+	return c.Run()
 }
 
 func (c *cmd) stop() error {
-	if c.cmd.Process != nil {
-		return c.cmd.Process.Kill()
+	if c.Process != nil {
+		return c.Process.Kill()
 	}
 	return nil
 }
